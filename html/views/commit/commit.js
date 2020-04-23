@@ -1,7 +1,7 @@
 /* Commit: Interface for selecting, staging, discarding, and unstaging
    hunks, individual lines, or ranges of lines.  */
 
-var contextLines = 5;
+var contextLines = 0;
 
 var showNewFile = function(file)
 {
@@ -9,7 +9,7 @@ var showNewFile = function(file)
 
 	var contents = Index.diffForFile_staged_contextLines_(file, false, contextLines);
 	if (!contents) {
-		notify("Can not display changes (Binary file?)", -1);
+		notify("Cannot display changes (file is binary or too large)", -1);
 		diff.innerHTML = "";
 		return;
 	}
@@ -39,6 +39,7 @@ var setTitle = function(status) {
 var displayContext = function() {
 	$("contextSize").style.display = "";
 	$("contextTitle").style.display = "";
+	contextLines = $("contextSize").value;
 }
 
 var showFileChanges = function(file, cached) {
@@ -51,13 +52,14 @@ var showFileChanges = function(file, cached) {
 	hideState();
 
 	$("contextSize").oninput = function(element) {
-		contextSize = $("contextSize").value;
+		contextLines = $("contextSize").value;
+		Controller.refresh();
 	}
 
 	if (file.status == 0) // New file?
 		return showNewFile(file);
 
-	setTitle((cached ? "Staged": "Unstaged") + " changes for" + file.path);
+	setTitle((cached ? "Staged": "Unstaged") + " changes for " + file.path);
 	displayContext();
 	var changes = Index.diffForFile_staged_contextLines_(file, cached, contextLines);
 	
@@ -74,15 +76,19 @@ var showFileChanges = function(file, cached) {
 var setSelectHandlers = function()
 {
 	document.onmousedown = function(event) {
+        if (!event.metaKey)
+            return;
 		if(event.which != 1) return false;
 		deselect();
 		currentSelection = false;
 	}
-	document.onselectstart = function () {return false;}; /* prevent normal text selection */
 
 	var list = document.getElementsByClassName("lines");
 
 	document.onmouseup = function(event) {
+        if (!event.metaKey)
+            return;
+        
 		// Handle button releases outside of lines list
 		for (i = 0; i < list.length; ++i) {
 			file = list[i];
@@ -94,6 +100,9 @@ var setSelectHandlers = function()
 	for (i = 0; i < list.length; ++i) {
 		var file = list[i];
 		file.ondblclick = function (event) {
+            if (!event.metaKey)
+                return;
+            
 			var file = event.target.parentNode;
 			if (file.id = "selected")
 				file = file.parentNode;
@@ -108,6 +117,8 @@ var setSelectHandlers = function()
 		};
 
 		file.onmousedown = function(event) {
+            if (!event.metaKey)
+                return;
 			if (event.which != 1) 
 				return false;
 			var elem_class = event.target.getAttribute("class")
@@ -148,6 +159,8 @@ var setSelectHandlers = function()
 
 
 			file.onmouseover = function(event2) {
+                if (!event.metaKey)
+                    return;
 				showSelection(file, event.srcElement, event2.target);
 				return false;
 			};
