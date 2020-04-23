@@ -42,7 +42,7 @@
 #import <Cocoa/Cocoa.h>
 
 
-@interface DBPrefsWindowController : NSWindowController {
+@interface DBPrefsWindowController : NSWindowController PROTOCOL_10_6(NSAnimationDelegate,NSToolbarDelegate){
 	NSMutableArray *toolbarIdentifiers;
 	NSMutableDictionary *toolbarViews;
 	NSMutableDictionary *toolbarItems;
@@ -71,5 +71,6 @@
 - (void)crossFadeView:(NSView *)oldView withView:(NSView *)newView;
 - (NSRect)frameForView:(NSView *)view;
 
+- (NSString *)defaultViewIdentifier;
 
 @end
