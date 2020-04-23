@@ -43,7 +43,7 @@ static NSString* gitPath = nil;
 		return YES;
 	}
 
-	NSLog(@"Found a git binary at %@, but is only version %@", path, version);
+	DLog(@"Found a git binary at %@, but is only version %@", path, version);
 	return NO;
 }
 
@@ -80,7 +80,7 @@ static NSString* gitPath = nil;
 			return;
 	}
 
-	NSLog(@"Could not find a git binary higher than version " MIN_GIT_VERSION);
+	DLog(@"Could not find a git binary higher than version " MIN_GIT_VERSION);
 }
 
 + (NSString *) path;
@@ -110,7 +110,7 @@ static NSMutableArray *locations = nil;
 {
 	NSMutableString *error = [NSMutableString stringWithString:
 							  @"Could not find a git binary version " MIN_GIT_VERSION " or higher.\n"
-							  "Please make sure there is a git binary in one of the following locations:\n\n"];
+							  @"Please make sure there is a git binary in one of the following locations:\n\n"];
 	for (NSString *location in [PBGitBinary searchLocations]) {
 		[error appendFormat:@"\t%@\n", location];
 	}

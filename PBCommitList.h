@@ -12,13 +12,24 @@
 
 @class PBWebHistoryController;
 
+// Displays the list of commits. Additional behavior includes special key
+// handling and hiliting search results.
+// dataSource: PBRefController
+// delegate: PBGitHistoryController
 @interface PBCommitList : NSTableView {
 	IBOutlet WebView* webView;
-	IBOutlet PBWebHistoryController *webController;
-	IBOutlet PBGitHistoryController *controller;
+	__unsafe_unretained PBWebHistoryController *webController;
+	__unsafe_unretained PBGitHistoryController *controller;
+	__unsafe_unretained PBHistorySearchController *searchController;
 
+    BOOL useAdjustScroll;
 	NSPoint mouseDownPoint;
 }
 
+@property(nonatomic, unsafe_unretained) IBOutlet PBWebHistoryController *webController;
+@property(nonatomic, unsafe_unretained) IBOutlet PBGitHistoryController *controller;
+@property(nonatomic, unsafe_unretained) IBOutlet PBHistorySearchController *searchController;
+
 @property (readonly) NSPoint mouseDownPoint;
+@property (assign) BOOL useAdjustScroll;
 @end

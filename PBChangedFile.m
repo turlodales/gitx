@@ -15,10 +15,10 @@
 
 - (id) initWithPath:(NSString *)p
 {
-	if (![super init])
+	if (!(self = [super init]))
 		return nil;
 
-	path = p;
+	self.path = p;
 	return self;
 }
 
@@ -26,27 +26,34 @@
 {
 	NSAssert(status == NEW || self.commitBlobSHA, @"File is not new, but doesn't have an index entry!");
 	if (!self.commitBlobSHA)
-		return [NSString stringWithFormat:@"0 0000000000000000000000000000000000000000\t%@\0", self.path];
+		return [NSString stringWithFormat:@"0 0000000000000000000000000000000000000000\t%@", self.path];
 	else
-		return [NSString stringWithFormat:@"%@ %@\t%@\0", self.commitBlobMode, self.commitBlobSHA, self.path];
+		return [NSString stringWithFormat:@"%@ %@\t%@", self.commitBlobMode, self.commitBlobSHA, self.path];
 }
 
-- (NSImage *) icon
-{
++ (NSImage *) iconForStatus:(PBChangedFileStatus) aStatus {
 	NSString *filename;
-	switch (status) {
+	switch (aStatus) {
 		case NEW:
-			filename = @"new_file";
+			filename = @"unversioned_file";
 			break;
 		case DELETED:
 			filename = @"deleted_file";
 			break;
+		case ADDED:
+			filename = @"added_file";
+			break;
 		default:
-			filename = @"empty_file";
+			filename = @"modified_file";
 			break;
 	}
 	NSString *p = [[NSBundle mainBundle] pathForResource:filename ofType:@"png"];
 	return [[NSImage alloc] initByReferencingFile: p];
+}
+
+- (NSImage *) icon
+{
+	return [PBChangedFile iconForStatus:status];
 }
 
 + (BOOL)isSelectorExcludedFromWebScript:(SEL)aSelector

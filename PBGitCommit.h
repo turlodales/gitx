@@ -9,41 +9,54 @@
 #import <Cocoa/Cocoa.h>
 #import "PBGitRepository.h"
 #import "PBGitTree.h"
-#include "git/oid.h"
+#import "PBGitRefish.h"
 
-@interface PBGitCommit : NSObject {
-	git_oid sha;
-	git_oid *parentShas;
-	int nParents;
+
+extern NSString * const kGitXCommitType;
+
+
+@interface PBGitCommit : NSObject <PBGitRefish> {
+	NSString *sha;
 
 	NSString* subject;
 	NSString* author;
+	NSString *committer;
 	NSString* details;
 	NSString *_patch;
-	NSArray* parents;
+	NSArray *parents;
+	NSString *realSHA;
 
 	int timestamp;
 	char sign;
 	id lineInfo;
-	PBGitRepository* repository;
+	__unsafe_unretained PBGitRepository* repository;
 }
 
-- initWithRepository:(PBGitRepository *)repo andSha:(git_oid)sha;
++ (PBGitCommit *)commitWithRepository:(PBGitRepository*)repo andSha:(NSString *)newSha;
+- (id)initWithRepository:(PBGitRepository *)repo andSha:(NSString *)newSha;
 
-- (void)addRef:(PBGitRef *)ref;
-- (void)removeRef:(id)ref;
+- (void) addRef:(PBGitRef *)ref;
+- (void) removeRef:(id)ref;
+- (BOOL) hasRef:(PBGitRef *)ref;
 
 - (NSString *)realSha;
+- (BOOL) isOnSameBranchAs:(PBGitCommit *)other;
+- (BOOL) isOnHeadBranch;
 
-@property (readonly) git_oid *sha;
+// <PBGitRefish>
+- (NSString *) refishName;
+- (NSString *) shortName;
+- (NSString *) refishType;
+
+@property (readonly) NSString *sha;
 @property (copy) NSString* subject;
 @property (copy) NSString* author;
-@property (readonly) NSArray* parents; // TODO: remove this and its uses
+@property (copy) NSString *committer;
+@property (strong) NSArray *parents;
 
-@property (assign) git_oid *parentShas;
-@property (assign) int nParents, timestamp;
+@property (assign) int timestamp;
 
-@property (retain) NSMutableArray* refs;
+@property (strong) NSMutableArray* refs;
 @property (readonly) NSDate *date;
 @property (readonly) NSString* dateString;
 @property (readonly) NSString* patch;
@@ -52,6 +65,6 @@
 @property (readonly) NSString* details;
 @property (readonly) PBGitTree* tree;
 @property (readonly) NSArray* treeContents;
-@property (retain) PBGitRepository* repository;
-@property (retain) id lineInfo;
+@property (unsafe_unretained) PBGitRepository* repository;
+@property (strong) id lineInfo;
 @end
