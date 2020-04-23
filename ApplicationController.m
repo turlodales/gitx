@@ -10,15 +10,22 @@
 #import "PBGitRevisionCell.h"
 #import "PBGitWindowController.h"
 #import "PBRepositoryDocumentController.h"
-#import "PBCLIProxy.h"
 #import "PBServicesController.h"
 #import "PBGitXProtocol.h"
 #import "PBPrefsWindowController.h"
 #import "PBNSURLPathUserDefaultsTransfomer.h"
 #import "PBGitDefaults.h"
+#import "PBCloneRepositoryPanel.h"
+#import "Sparkle/SUUpdater.h"
+#import "AIURLAdditions.h"
+#import "PBGitRepository.h"
+
+@interface ApplicationController ()
+- (void) cleanUpRemotesOnError;
+@end
+
 
 @implementation ApplicationController
-@synthesize cliProxy;
 
 - (ApplicationController*)init
 {
@@ -26,12 +33,12 @@
 	[NSApp activateIgnoringOtherApps:YES];
 #endif
 
-	if(self = [super init]) {
-		if(![[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/QuickLookUI.framework"] load])
-			NSLog(@"Could not load QuickLook");
+	if(!(self = [super init]))
+		return nil;
 
-		self.cliProxy = [PBCLIProxy new];
-	}
+	if(![[NSBundle bundleWithPath:@"/System/Library/Frameworks/Quartz.framework/Frameworks/QuickLookUI.framework"] load])
+		if(![[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/QuickLookUI.framework"] load])
+			DLog(@"Could not load QuickLook");
 
 	/* Value Transformers */
 	NSValueTransformer *transformer = [[PBNSURLPathUserDefaultsTransfomer alloc] init];
@@ -55,43 +62,88 @@
 	int serviceVersion = [[NSUserDefaults standardUserDefaults] integerForKey:@"Services Version"];
 	if (serviceVersion < 2)
 	{
-		NSLog(@"Updating services menu…");
+		DLog(@"Updating services menu…");
 		NSUpdateDynamicServices();
 		[[NSUserDefaults standardUserDefaults] setInteger:2 forKey:@"Services Version"];
 	}
 }
 
+- (void)applicationWillFinishLaunching:(NSNotification*)notification
+{
+    [[NSAppleEventManager sharedAppleEventManager] setEventHandler:self
+                                                       andSelector:@selector(getUrl:withReplyEvent:)
+                                                     forEventClass:kInternetEventClass
+                                                        andEventID:kAEGetURL];
+}
+ 
 - (void)applicationDidFinishLaunching:(NSNotification*)notification
 {
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(getArguments:) name:@"GitCommandSent" object:Nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cleanGitAfterErrorMessage:) name:@"ErrorMessageDidEnd" object:Nil];
+     
+    [[SUUpdater sharedUpdater] setSendsSystemProfile:YES];
+    [[SUUpdater sharedUpdater] setDelegate:self];
+
+    if ([PBGitDefaults useAskPasswd]) {
+	// Make sure Git's SSH password requests get forwarded to our little UI tool:
+	setenv( "SSH_ASKPASS", [[[NSBundle mainBundle] pathForResource: @"gitx_askpasswd" ofType: @""] UTF8String], 1 );
+	setenv( "DISPLAY", "localhost:0", 1 );
+    }
+       
 	[self registerServices];
 
+    BOOL hasOpenedDocuments = NO;
+    NSArray *launchedDocuments = [[[PBRepositoryDocumentController sharedDocumentController] documents] copy];
+    
 	// Only try to open a default document if there are no documents open already.
 	// For example, the application might have been launched by double-clicking a .git repository,
 	// or by dragging a folder to the app icon
-	if ([[[PBRepositoryDocumentController sharedDocumentController] documents] count])
-		return;
+	if ([launchedDocuments count])
+		hasOpenedDocuments = YES;
+
+    // open any documents that were open the last time the app quit
+    if ([PBGitDefaults openPreviousDocumentsOnLaunch]) {
+        for (NSString *path in [PBGitDefaults previousDocumentPaths]) {
+            NSURL *url = [NSURL fileURLWithPath:path isDirectory:YES];
+            NSError *error = nil;
+            if (url && [[PBRepositoryDocumentController sharedDocumentController] openDocumentWithContentsOfURL:url display:YES error:&error])
+                hasOpenedDocuments = YES;
+        }
+    }
+
+	// Try to find the current directory, to open that as a repository
+	if ([PBGitDefaults openCurDirOnLaunch] && !hasOpenedDocuments) {
+		NSString *curPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"PWD"];
+        NSURL *url = nil;
+		if (curPath)
+			url = [NSURL fileURLWithPath:curPath];
+        // Try to open the found URL
+        NSError *error = nil;
+        if (url && [[PBRepositoryDocumentController sharedDocumentController] openDocumentWithContentsOfURL:url display:YES error:&error])
+            hasOpenedDocuments = YES;
+	}
+
+    // to bring the launched documents to the front
+    for (PBGitRepository *document in launchedDocuments)
+        [document showWindows];
 
 	if (![[NSApplication sharedApplication] isActive])
 		return;
+}
 
-	NSURL *url = nil;
+- (void)getUrl:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+{
+	NSString *urlString = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
+    NSURL *url = [NSURL URLWithString:urlString];
+    
+    if ([url.host isEqual:@"clone"]) {
+        NSString * repo = [[url queryArgumentForKey:@"repo"] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
 
-	// Try to find the current directory, to open that as a repository
-	if ([PBGitDefaults openCurDirOnLaunch]) {
-		NSString *curPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"PWD"];
-		if (curPath)
-			url = [NSURL fileURLWithPath:curPath];
-	}
-
-	// Try to open the found URL
-	NSError *error = nil;
-	if (url && [[PBRepositoryDocumentController sharedDocumentController] openDocumentWithContentsOfURL:url display:YES error:&error])
-		return;
-
-	// The current directory was not enabled or could not be opened (most likely it’s not a git repository).
-	// show an open panel for the user to select a repository to view
-	if ([PBGitDefaults showOpenPanelOnLaunch])
-		[[PBRepositoryDocumentController sharedDocumentController] openDocument:self];
+        [self showCloneRepository:self];
+        
+        [cloneRepositoryPanel.repositoryURL setStringValue:repo];
+    }
+    
 }
 
 - (void) windowWillClose: sender
@@ -111,11 +163,22 @@
 	if (gitversion)
 		[dict addEntriesFromDictionary:[[NSDictionary alloc] initWithObjectsAndKeys:gitversion, @"Version", nil]];
 
+	[dict addEntriesFromDictionary:[[NSDictionary alloc] initWithObjectsAndKeys:@"GitX (L)", @"ApplicationName", nil]];
+	[dict addEntriesFromDictionary:[[NSDictionary alloc] initWithObjectsAndKeys:@"(c) Pieter de Bie,2008\n(c) German Laullon,2011\nAnd more...", @"Copyright", nil]];
+
 	#ifdef DEBUG_BUILD
 		[dict addEntriesFromDictionary:[[NSDictionary alloc] initWithObjectsAndKeys:@"GitX (DEBUG)", @"ApplicationName", nil]];
 	#endif
 
 	[NSApp orderFrontStandardAboutPanelWithOptions:dict];
+}
+
+- (IBAction) showCloneRepository:(id)sender
+{
+	if (!cloneRepositoryPanel)
+		cloneRepositoryPanel = [PBCloneRepositoryPanel panel];
+
+	[cloneRepositoryPanel showWindow:self];
 }
 
 - (IBAction)installCliTool:(id)sender;
@@ -167,11 +230,6 @@
     former cannot be found), the system's temporary directory.
  */
 
-- (IBAction) showHelp:(id) sender
-{
-	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://gitx.frim.nl/user_manual.html"]];
-}
-
 - (NSString *)applicationSupportFolder {
 
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
@@ -191,7 +249,7 @@
         return managedObjectModel;
     }
 	
-    managedObjectModel = [[NSManagedObjectModel mergedModelFromBundles:nil] retain];    
+    managedObjectModel = [NSManagedObjectModel mergedModelFromBundles:nil];    
     return managedObjectModel;
 }
 
@@ -217,7 +275,7 @@
     fileManager = [NSFileManager defaultManager];
     applicationSupportFolder = [self applicationSupportFolder];
     if ( ![fileManager fileExistsAtPath:applicationSupportFolder isDirectory:NULL] ) {
-        [fileManager createDirectoryAtPath:applicationSupportFolder attributes:nil];
+        [fileManager createDirectoryAtPath:applicationSupportFolder withIntermediateDirectories:YES attributes:nil error:nil];
     }
     
     url = [NSURL fileURLWithPath: [applicationSupportFolder stringByAppendingPathComponent: @"GitTest.xml"]];
@@ -324,6 +382,36 @@
     return reply;
 }
 
+- (void)applicationWillTerminate:(NSNotification *)aNotification
+{
+	[PBGitDefaults removePreviousDocumentPaths];
+
+	if ([PBGitDefaults openPreviousDocumentsOnLaunch]) {
+		NSArray *documents = [[PBRepositoryDocumentController sharedDocumentController] documents];
+		if ([documents count] > 0) {
+			NSMutableArray *paths = [NSMutableArray array];
+			for (PBGitRepository *repository in documents)
+				[paths addObject:[repository workingDirectory]];
+
+			[PBGitDefaults setPreviousDocumentPaths:paths];
+		}
+	}
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (BOOL)applicationShouldOpenUntitledFile:(NSApplication *)sender
+{
+    id dc = [PBRepositoryDocumentController sharedDocumentController];
+    
+    // Reopen last document if user prefers
+    if ([PBGitDefaults showOpenPanelOnLaunch])
+    {
+        [dc openDocument:self];
+    }
+    
+    return NO;
+}
 
 /**
     Implementation of dealloc, to release the retained variables.
@@ -331,9 +419,78 @@
  
 - (void) dealloc {
 
-    [managedObjectContext release], managedObjectContext = nil;
-    [persistentStoreCoordinator release], persistentStoreCoordinator = nil;
-    [managedObjectModel release], managedObjectModel = nil;
-    [super dealloc];
+    managedObjectContext = nil;
+    persistentStoreCoordinator = nil;
+    managedObjectModel = nil;
 }
+
+
+#pragma mark Sparkle delegate methods
+
+- (NSArray *)feedParametersForUpdater:(SUUpdater *)updater sendingSystemProfile:(BOOL)sendingProfile
+{
+	NSArray *keys = [NSArray arrayWithObjects:@"key", @"displayKey", @"value", @"displayValue", nil];
+	NSMutableArray *feedParameters = [NSMutableArray array];
+
+    // only add parameters if the profile is being sent this time
+    if (sendingProfile) {
+        NSString *CFBundleGitVersion = [[[NSBundle mainBundle] infoDictionary] valueForKey:@"CFBundleGitVersion"];
+		if (CFBundleGitVersion)
+			[feedParameters addObject:[NSDictionary dictionaryWithObjects:[NSArray arrayWithObjects:@"CFBundleGitVersion", @"Full Version", CFBundleGitVersion, CFBundleGitVersion, nil] 
+																  forKeys:keys]];
+
+        NSString *gitVersion = [PBGitBinary version];
+		if (gitVersion)
+			[feedParameters addObject:[NSDictionary dictionaryWithObjects:[NSArray arrayWithObjects:@"gitVersion", @"git Version", gitVersion, gitVersion, nil] 
+																  forKeys:keys]];
+	}
+
+    return feedParameters;
+}
+
+
+#pragma mark Help menu
+
+- (IBAction)showHelp:(id)sender
+{
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://gitx.frim.nl/user_manual.html"]];
+}
+
+- (IBAction)reportAProblem:(id)sender
+{
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/laullon/gitx/issues"]];
+}
+
+
+#pragma mark - Observer methods
+
+- (void)getArguments:(NSNotification*)notification
+{
+    notificationUserInfo = [notification userInfo];
+}
+
+
+- (void)cleanGitAfterErrorMessage:(NSNotification*)notification
+{
+    // When adding a remote occurs an error the remote
+    // will be set on git and has to be removed to clean the remotes list
+    [self cleanUpRemotesOnError];
+    
+    
+    
+}
+
+#pragma mark - Extensions
+- (void) cleanUpRemotesOnError
+{    
+    // check, if arguments was to add a remote
+    if ( ([(NSString*)[notificationUserInfo valueForKey:@"Arg0"] compare:@"remote"] == NSOrderedSame) &&
+        ([(NSString*)[notificationUserInfo valueForKey:@"Arg1"] compare:@"add"] == NSOrderedSame)
+        )
+    {
+        PBGitRef *remoteRef = [PBGitRef refFromString:[NSString stringWithFormat:@"%@%@", kGitXRemoteRefPrefix,[notificationUserInfo valueForKey:@"Arg3"]]];
+        [[notificationUserInfo valueForKey:@"Repository"] deleteRemote:remoteRef];
+    }
+}
+
 @end
