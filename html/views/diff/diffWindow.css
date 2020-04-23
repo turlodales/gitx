@@ -1,0 +1,168 @@
+body {
+	margin: 0;
+	padding: 0;
+}
+
+#diffs {
+	width: 100%;
+	display: block;
+	overflow: auto;
+}
+
+#diff {
+	display: block;
+	overflow: auto;
+}
+
+.diff-header, .diff-body {
+    font-family: Menlo, Consolas, 'Bitstream Vera Sans Mono', 'Courier New', Courier, monospace;
+	border-collapse: collapse;
+    border-style: solid;
+    border-color: #8f8f8f;
+	-webkit-box-shadow:3px 3px 3px #ccc;
+	width: 98%;
+    overflow: auto;
+}
+
+.diff-header {
+    border-width: 1px 1px 0 1px;
+	margin: auto auto 0 1%;
+}
+
+.diff-body {
+    border-width: 0 1px 1px 1px;
+	margin: auto auto 20px 1%;
+}
+
+.diff-header table.diff {
+    width: 100%;
+}
+
+table.diff {
+	border-collapse: collapse;
+}
+
+table.diff tr td {
+	font-size: 11px;
+	white-space: pre;
+	padding-left: 5px;
+	padding-right: 5px;
+}
+
+table.diff td.code {
+	width: 100%;
+	border-left: 2px solid #d0d0d0;
+}
+    
+table.diff tr.header td {
+	border-bottom: 1px solid #8f8f8f;
+	padding: 5px;
+}
+
+table.diff tr td.l {
+	border-right: 1px solid #909090;
+}
+
+table.diff tr.r {
+	background-color: rgba(0,255,0,0.1);
+}
+
+table.diff tr.l {
+	background-color: rgba(255,0,0,0.1);
+}
+
+table.diff tr.r td.code {
+	border-left-color: rgba(0,255,0,0.2);
+}
+
+table.diff tr.l td.code {
+	border-left-color: rgba(255,0,0,0.2);
+}
+
+table.diff thead tr td p {
+	margin: 0;
+}
+
+table.diff thead {
+	background-image: -webkit-gradient(linear,left top,left bottom, color-stop(0, rgba(206,206,206,1)), color-stop(1, rgba(166,166,166,1)));
+}
+
+table.diff thead tr td {
+	padding: 5px;
+}
+
+table.diff tbody tr.header {
+	background-image: -webkit-gradient(linear,left top,left bottom, color-stop(0, rgba(244, 244, 244,1)), color-stop(1, rgba(215,215,215,1)));
+}
+
+table.diff .filemerge {
+	float: right;
+	text-align: center;
+}
+
+#filelist {
+	font-size: 13px;
+	white-space: nowrap;
+	width: 100%;
+	padding: 0 20px;
+	border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+#filelist tr td {
+	border-bottom: 1px solid #ccc;
+	border-top: 1px solid #ccc;
+}
+
+#filelist a {
+	margin-left: 10px;
+	padding-left: 20px;
+	text-decoration: none;
+}
+
+#filelist a:hover {
+	text-decoration: underline;
+}
+
+#filelist a.A {
+	background: url(../../images/added.png) no-repeat 0 center;
+}
+
+#filelist a.D {
+	background: url(../../images/removed.png) no-repeat 0 center;
+}
+
+#filelist a.M {
+	background: url(../../images/modified.png) no-repeat 0 center;
+}
+
+#filelist a.R,#filelist a.C {
+	background: url(../../images/renamed.png) no-repeat 0 center;
+}
+
+#filelist span.add,#filelist span.rem {
+	display: block;
+	height: 10px;
+	border-top-left-radius: 5px;
+	border-bottom-left-radius: 5px;
+	float: right;
+	clear: both;
+}
+
+#filelist span.add {
+	background-color: rgba(0, 255, 0, 0.199219);
+}
+
+#filelist span.rem {
+	background-color: rgba(255, 0, 0, 0.199219);
+}
+
+#filelist td.bar {
+	width: 50%;
+	display: block;
+}
+
+#filelist td.add,#filelist td.rem {
+	width: 1%;
+	text-align: right;
+}
