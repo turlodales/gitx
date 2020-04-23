@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>SUPublicDSAKeyFile</key>
+	<string>gitx_l_pub.pem</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleName</key>
@@ -48,8 +50,19 @@
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gitx</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
-	<string>LONG_VERSION</string>
+	<string>SHORT_VERSION</string>
 	<key>CFBundleGitVersion</key>
 	<string>GIT_VERSION</string>
 	<key>CFBundleShortVersionString</key>
@@ -58,8 +71,10 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSSupportsSuddenTermination</key>
+	<true/>
 	<key>SUFeedURL</key>
-	<string>http://gitx.frim.nl/Downloads/appcast.xml</string>
+	<string>http://gitx.laullon.com/appcast.xml</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
@@ -87,5 +102,9 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>GitX.sdef</string>
 </dict>
 </plist>
